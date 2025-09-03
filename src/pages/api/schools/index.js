@@ -3,10 +3,14 @@ import serverlessMysql from 'serverless-mysql';
 import { IncomingForm } from 'formidable';
 import fs from 'fs';
 
-// Configure the database connection using the URL
+// Configure the database connection using separate variables
 const db = serverlessMysql({
   config: {
-    connectionUrl: process.env.DATABASE_URL,
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT),
+    database: process.env.DB_DATABASE,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
   },
 });
 
@@ -17,10 +21,11 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  // The rest of the file is the same...
   if (req.method === 'GET') {
     try {
       const results = await db.query('SELECT * FROM schools ORDER BY id DESC');
-      await db.end(); // Close the connection
+      await db.end();
       return res.status(200).json(results);
     } catch (error) {
       console.error("GET request database error:", error);
@@ -58,7 +63,7 @@ export default async function handler(req, res) {
         const query = 'INSERT INTO schools (name, address, city, state, contact, image, email_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
         const values = [name?.[0], address?.[0], city?.[0], state?.[0], contact?.[0], imageUrl, email_id?.[0]];
         await db.query(query, values);
-        await db.end(); // Close the connection
+        await db.end();
         return res.status(201).json({ message: 'School added successfully!' });
       } catch (dbError) {
         console.error("Database insert error:", dbError);
