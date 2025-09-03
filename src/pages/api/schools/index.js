@@ -3,7 +3,6 @@ import serverlessMysql from 'serverless-mysql';
 import { IncomingForm } from 'formidable';
 import fs from 'fs';
 
-// Configure the database connection with explicit SSL requirement
 const db = serverlessMysql({
   config: {
     host: process.env.DB_HOST,
@@ -12,7 +11,6 @@ const db = serverlessMysql({
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     ssl: {
-      // This requires the connection to be secure
       rejectUnauthorized: true,
     },
   },
@@ -25,11 +23,10 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  // The rest of the file is the same...
   if (req.method === 'GET') {
     try {
       const results = await db.query('SELECT * FROM schools ORDER BY id DESC');
-      await db.end();
+      // await db.end(); // <-- THIS LINE IS REMOVED
       return res.status(200).json(results);
     } catch (error) {
       console.error("GET request database error:", error);
@@ -67,7 +64,7 @@ export default async function handler(req, res) {
         const query = 'INSERT INTO schools (name, address, city, state, contact, image, email_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
         const values = [name?.[0], address?.[0], city?.[0], state?.[0], contact?.[0], imageUrl, email_id?.[0]];
         await db.query(query, values);
-        await db.end();
+        // await db.end(); // <-- THIS LINE IS REMOVED
         return res.status(201).json({ message: 'School added successfully!' });
       } catch (dbError) {
         console.error("Database insert error:", dbError);
