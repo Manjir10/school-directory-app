@@ -3,7 +3,7 @@ import serverlessMysql from 'serverless-mysql';
 import { IncomingForm } from 'formidable';
 import fs from 'fs';
 
-// Configure the database connection using separate variables
+// Configure the database connection with explicit SSL requirement
 const db = serverlessMysql({
   config: {
     host: process.env.DB_HOST,
@@ -11,6 +11,10 @@ const db = serverlessMysql({
     database: process.env.DB_DATABASE,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
+    ssl: {
+      // This requires the connection to be secure
+      rejectUnauthorized: true,
+    },
   },
 });
 
