@@ -3,7 +3,6 @@ import serverlessMysql from 'serverless-mysql';
 import { IncomingForm } from 'formidable';
 import fs from 'fs';
 
-// Configure the database connection with a longer timeout
 const db = serverlessMysql({
   config: {
     host: process.env.DB_HOST,
@@ -12,15 +11,14 @@ const db = serverlessMysql({
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     ssl: {
-      rejectUnauthorized: true,
+      // This is the fix for the self-signed certificate error
+      rejectUnauthorized: false,
     },
-    connectTimeout: 30000 // Wait for 30 seconds before timing out
   },
 });
 
 export const config = { api: { bodyParser: false } };
 
-// The rest of the handler logic is the same...
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
@@ -31,6 +29,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to fetch school data.' });
     }
   }
+
   if (req.method === 'POST') {
     const form = new IncomingForm();
     form.parse(req, async (err, fields, files) => {
@@ -42,9 +41,14 @@ export default async function handler(req, res) {
         try {
           const fileContents = fs.readFileSync(imageFile.filepath);
           const fileName = `${Date.now()}_${imageFile.originalFilename}`;
-          const blob = await put(fileName, fileContents, { access: 'public' });
+          // This is the fix for the Blob token when running outside Vercel
+          const blob = await put(fileName, fileContents, {
+            access: 'public',
+            token: process.env.BLOB_READ_WRITE_TOKEN
+          });
           imageUrl = blob.url;
         } catch (uploadError) {
+          console.error("Blob upload error:", uploadError);
           return res.status(500).json({ error: 'Failed to upload image.' });
         }
       }
@@ -54,6 +58,7 @@ export default async function handler(req, res) {
         const query = 'INSERT INTO schools (name, address, city, state, contact, image, email_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
         const values = [name?.[0], address?.[0], city?.[0], state?.[0], contact?.[0], imageUrl, email_id?.[0]];
         await db.query(query, values);
+
         return res.status(201).json({ message: 'School added successfully!' });
       } catch (dbError) {
         console.error("Database insert error:", dbError);
