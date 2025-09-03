@@ -4,7 +4,7 @@
 
 ## ✨ Live Demo
 
-[**View the live project here**](https://your-project-link.vercel.app)
+[**View the live project here**](https://school-directory-app.onrender.com)
 
 ---
 
