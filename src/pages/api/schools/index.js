@@ -1,7 +1,14 @@
 import { put } from '@vercel/blob';
-import mysql from 'mysql2/promise';
+import serverlessMysql from 'serverless-mysql';
 import { IncomingForm } from 'formidable';
 import fs from 'fs';
+
+// Configure the database connection using the URL
+const db = serverlessMysql({
+  config: {
+    connectionUrl: process.env.DATABASE_URL,
+  },
+});
 
 export const config = {
   api: {
@@ -9,17 +16,12 @@ export const config = {
   },
 };
 
-async function dbConnect() {
-  return await mysql.createConnection(process.env.DATABASE_URL);
-}
-
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
-      const connection = await dbConnect();
-      const [rows] = await connection.execute('SELECT * FROM schools ORDER BY id DESC');
-      connection.end();
-      return res.status(200).json(rows);
+      const results = await db.query('SELECT * FROM schools ORDER BY id DESC');
+      await db.end(); // Close the connection
+      return res.status(200).json(results);
     } catch (error) {
       console.error("GET request database error:", error);
       return res.status(500).json({ error: 'Failed to fetch school data.' });
@@ -43,26 +45,20 @@ export default async function handler(req, res) {
       try {
         const fileContents = fs.readFileSync(imageFile.filepath);
         const fileName = `${Date.now()}_${imageFile.originalFilename}`;
-        
         const blob = await put(fileName, fileContents, { access: 'public' });
         imageUrl = blob.url;
-
       } catch (uploadError) {
-        // --- THIS LOG WAS MISSING ---
         console.error("Vercel Blob upload error:", uploadError);
-        // --- END OF FIX ---
         return res.status(500).json({ error: 'Failed to upload image.' });
       }
 
       const { name, address, city, state, contact, email_id } = fields;
 
       try {
-        const connection = await dbConnect();
         const query = 'INSERT INTO schools (name, address, city, state, contact, image, email_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
-        await connection.execute(query, [
-          name?.[0], address?.[0], city?.[0], state?.[0], contact?.[0], imageUrl, email_id?.[0]
-        ]);
-        connection.end();
+        const values = [name?.[0], address?.[0], city?.[0], state?.[0], contact?.[0], imageUrl, email_id?.[0]];
+        await db.query(query, values);
+        await db.end(); // Close the connection
         return res.status(201).json({ message: 'School added successfully!' });
       } catch (dbError) {
         console.error("Database insert error:", dbError);
